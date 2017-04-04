@@ -100,6 +100,8 @@ class DLS(StaticScheduler):
       task_to_schedule = -1
       host_to_schedule = -1
       for host in simulation.hosts:
+        if cscheduling.is_master_host(host):
+          continue
         for task in queue_tasks:
           if dl[host][task] == unreal_dl:
             continue
@@ -138,7 +140,8 @@ class DLS(StaticScheduler):
         waiting_tasks.remove(task)
         queue_tasks.add(task)
 
-    return state.schedule
+    expected_makespan = max([state["ect"] for state in state.task_states.values()])
+    return state.schedule, expected_makespan
 
   @classmethod
   def calculate_dl(cls, nxgraph, platform_model, state, sl, aec, task, host):
