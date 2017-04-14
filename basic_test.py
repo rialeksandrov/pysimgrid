@@ -1,9 +1,7 @@
 """
 Temporary development test for quick-hacking.
-
 Probably should be deleted on 'final release'.
 It's pretty illustrative, however.
-
 For bettter examples on C API wrappers look at test/test_capi.py.
 """
 
