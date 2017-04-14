@@ -17,6 +17,7 @@
 #
 
 from .batch import BatchMin, BatchMax, BatchSufferage
+from .dls import DLS
 from .hcpt import HCPT
 from .heft import HEFT
 from .lookahead import Lookahead
@@ -27,3 +28,4 @@ from .random import RandomStatic
 from .round_robin import RoundRobinStatic
 from .dls import DLS
 from .ga import GA
+from .simheft import SimHEFT

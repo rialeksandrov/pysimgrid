@@ -23,236 +23,169 @@ import numpy
 import copy
 import random
 import operator
+import itertools
+import multiprocessing
+import tempfile
 
 from ... import cscheduling
 from ..scheduler import StaticScheduler
 
 
-class GA(StaticScheduler):
-    """
-    Genetic-Algorithm-Based Approach
-
-    """
-
-    class Chromosome:
-
-        class FakeScheduler(StaticScheduler):
-            def __init__(self, schedule):
-                self.schedule = schedule
-
-            def get_schedule(self, simulation):
-                return self.schedule
-
-
-        def __init__(self, topological_order, hosts, nxgraph):
-            self.nxgraph = nxgraph
-            self.tasks = topological_order
-            self.hosts = hosts
-
-            self.matching = {}
-            for task in self.tasks:
-                self.matching[task] = random.choice(self.hosts)
-
-            self.scheduling = {}
-            for i in range(len(self.tasks)):
-                self.scheduling[self.tasks[i]] = i
-
-        def scheduling_mutation(self):
-            task = random.choice(self.tasks)
-            left_boundary = 0
-            right_boundary = len(self.tasks) - 1
-            for child, edge in self.nxgraph[task].items():
-                right_boundary = min(right_boundary, self.scheduling[child] - 1)
-
-            for parent in self.nxgraph.pred[task]:
-                left_boundary = max(left_boundary, self.scheduling[parent] + 1)
-
-            new_id = random.randint(left_boundary, right_boundary)
-            old_id = self.scheduling[task]
-
-            add = 1
-            if new_id > old_id:
-                add = -1
-
-            for item in self.tasks:
-                if min(old_id, new_id) <= self.scheduling[item] and self.scheduling[item] <= max(old_id, new_id):
-                    self.scheduling[item] += add
-
-            self.scheduling[task] = new_id
-
-        def matching_mutation(self):
-            task = random.choice(self.tasks)
-            self.matching[task] = random.choice(self.hosts)
-
-        def make_task_order(self):
-            res = copy.copy(self.tasks)
-            for task in self.scheduling:
-                res[self.scheduling[task]] = task
-            return res
-
-        def matching_crossover(self, gen):
-            cut_off = random.randint(0, len(self.tasks) - 1)
-            for task in self.tasks:
-                if cut_off == 0:
-                    temp = gen.matching[task]
-                    gen.matching[task] = self.matching[task]
-                    self.matching[task] = temp
-                else:
-                    cut_off -= 1
-
-        def scheduling_crossover(self, gen):
-            cut_off = random.randint(0, len(self.tasks) - 1)
-            cut_off_temp = cut_off
-            order = self.make_task_order()
-            first_res = {}
-            for task in self.tasks:
-                if cut_off_temp == 0:
-                    break
-                else:
-                    first_res[task] = gen.scheduling[task]
-                    cut_off_temp -= 1
-            id = cut_off
-            for task in order:
-                if task not in first_res:
-                    first_res[task] = id
-                    id += 1
-
-            cut_off_temp = cut_off
-            order = gen.make_task_order()
-            second_res = {}
-            for task in self.tasks:
-                if cut_off_temp == 0:
-                    break
-                else:
-                    second_res[task] = self.scheduling[task]
-                    cut_off_temp -= 1
-            id = cut_off
-            for task in order:
-                if task not in second_res:
-                    second_res[task] = id
-                    id += 1
-
-            gen.scheduling = first_res
-            self.scheduling = second_res
-
-        def evaluation(self):
-            schedule = {host: [] for host in self.hosts}
-            order = self.make_task_order()
-            for task in order:
-                schedule[self.matching[task]].append(task)
-            fake_schedule = FakeScheduler(schedule)
-
-            return 0
-
-        def __eq__(self, other):
-            return self.scheduling == other.scheduling and self.matching == other.matching
-
-
-
-
+class _ExtrenalSchedule(StaticScheduler):
+  def __init__(self, simulation, schedule):
+    super(_ExtrenalSchedule, self).__init__(simulation)
+    self.__schedule = schedule
 
     def get_schedule(self, simulation):
-        """
-        Overridden.
-        """
-        nxgraph = simulation.get_task_graph()
-        platform_model = cscheduling.PlatformModel(simulation)
-        state = cscheduling.SchedulerState(simulation)
+        return self.__schedule
 
-        mean_speed = platform_model.mean_speed
-        aec, sl = self.get_tasks_sl_aec(nxgraph, platform_model)
-        # unreal dynamic level - used to mark deleted on not set values in a queue
-        unreal_dl = 1 + max(sl.items(), key=operator.itemgetter(1))[1] + max(aec.items(), key=operator.itemgetter(1))[1]
-        dl = {host: {task: unreal_dl for task in nxgraph} for host in simulation.hosts}
-        undone_parents = {task: len(nxgraph.pred[task]) for task in nxgraph}
-        waiting_tasks = set(nxgraph)
-        queue_tasks = set()
-        for task in nxgraph:
-            if undone_parents[task] == 0:
-                for host in simulation.hosts:
-                    dl[host][task] = sl[task] + (task.amount / mean_speed - task.amount / host.speed)
-                waiting_tasks.remove(task)
-                queue_tasks.add(task)
+class Chromosome:
 
-        for iterations in range(len(nxgraph)):
-            cur_max = unreal_dl
-            task_to_schedule = -1
-            host_to_schedule = -1
-            for host in simulation.hosts:
-                for task in queue_tasks:
-                    if dl[host][task] == unreal_dl:
-                        continue
-                    if cur_max == unreal_dl or dl[host][task] > cur_max:
-                        cur_max = dl[host][task]
-                        host_to_schedule = host
-                        task_to_schedule = task
+  def __init__(self, topological_order, hosts, nxgraph):
+    self.nxgraph = nxgraph
+    self.tasks = topological_order
+    self.hosts = hosts
+    self.matching = {}
 
-            assert (cur_max != unreal_dl)
+    for task in self.tasks:
+      self.matching[task] = random.choice(self.hosts)
+      self.scheduling = {}
 
-            if cscheduling.try_schedule_boundary_task(task_to_schedule, platform_model, state) == False:
-                est = platform_model.est(host_to_schedule, nxgraph.pred[task_to_schedule], state)
-                eet = platform_model.eet(task_to_schedule, host_to_schedule)
-                timesheet = state.timetable[host_to_schedule]
-                pos, start, finish = cscheduling.timesheet_insertion(timesheet, est, eet)
-                state.update(task_to_schedule, host_to_schedule, pos, start, finish)
+    for i in range(len(self.tasks)):
+      self.scheduling[self.tasks[i]] = i
 
-            new_tasks = set()
-            for child, edge in nxgraph[task_to_schedule].items():
-                undone_parents[child] -= 1
-                if undone_parents[child] == 0:
-                    new_tasks.add(child)
-                    for host in simulation.hosts:
-                        dl[host][child] = self.calculate_dl(nxgraph, platform_model, state, sl, aec, child, host)
+    def scheduling_mutation(self):
+      task = random.choice(self.tasks)
+      left_boundary = 0
+      right_boundary = len(self.tasks) - 1
+      for child, edge in self.nxgraph[task].items():
+        right_boundary = min(right_boundary, self.scheduling[child] - 1)
 
-            for host in simulation.hosts:
-                dl[host][task_to_schedule] = unreal_dl
+      for parent in self.nxgraph.pred[task]:
+        left_boundary = max(left_boundary, self.scheduling[parent] + 1)
 
-            queue_tasks.remove(task_to_schedule)
+      new_id = random.randint(left_boundary, right_boundary)
+      old_id = self.scheduling[task]
 
-            for task in queue_tasks:
-                if undone_parents[task] == 0:
-                    dl[host_to_schedule][task] = self.calculate_dl(nxgraph, platform_model, state, sl, aec, task,
-                                                                   host_to_schedule)
+      add = 1
+      if new_id > old_id:
+        add = -1
 
-            for task in new_tasks:
-                waiting_tasks.remove(task)
-                queue_tasks.add(task)
+      for item in self.tasks:
+        if min(old_id, new_id) <= self.scheduling[item] and self.scheduling[item] <= max(old_id, new_id):
+          self.scheduling[item] += add
 
-        return state.schedule
+      self.scheduling[task] = new_id
 
-    @classmethod
-    def calculate_dl(cls, nxgraph, platform_model, state, sl, aec, task, host):
-        est = platform_model.est(host, nxgraph.pred[task], state)
-        eet = platform_model.eet(task, host)
-        timesheet = state.timetable[host]
-        pos, start, finish = cscheduling.timesheet_insertion(timesheet, est, eet)
-        return sl[task] + (aec[task] - task.amount / host.speed) - start
+  def matching_mutation(self):
+    task = random.choice(self.tasks)
+    self.matching[task] = random.choice(self.hosts)
 
-    @classmethod
-    def get_tasks_sl_aec(cls, nxgraph, platform_model):
-        """
-        Return Average Execution Cost and Static Level for every task.
+  def make_task_order(self):
+    res = copy.copy(self.tasks)
+    for task in self.scheduling:
+      res[self.scheduling[task]] = task
+    return res
 
-        Args:
-          nxgraph: full task graph as networkx.DiGraph
-          platform_model: cscheduling.PlatformModel object
+  def matching_crossover(self, gen):
+    cut_off = random.randint(0, len(self.tasks) - 1)
+    order = self.make_task_order()
+    for task in order:
+      if cut_off == 0:
+        temp = gen.matching[task]
+        gen.matching[task] = self.matching[task]
+        self.matching[task] = temp
+      else:
+        cut_off -= 1
 
-        Returns:
-            aec: task->aec_value
-            sl: task->static_level_value
-        """
-        mean_speed = platform_model.mean_speed
-        topological_order = networkx.topological_sort(nxgraph, reverse=True)
+  def scheduling_crossover(self, gen):
+    cut_off = random.randint(0, len(self.tasks) - 1)
+    self_order = self.make_task_order()
+    gen_order = gen.make_task_order()
+    first_res = {}
+    for i in range(cut_off):
+      task = gen_order[i]
+      first_res[task] = i
 
-        # Average execution cost
-        aec = {task: float(task.amount) / mean_speed for task in nxgraph}
+    id = cut_off
+    for task in self_order:
+      if task not in first_res:
+        first_res[task] = id
+        id += 1
 
-        sl = {task: aec[task] for task in nxgraph}
+    second_res = {}
+    for i in range(cut_off):
+      task = self_order[i]
+      second_res[task] = i
 
-        # Static Level
-        for task in topological_order:
-            for parent in nxgraph.pred[task]:
-                sl[parent] = max(sl[parent], sl[task] + aec[parent])
+    id = cut_off
+    for task in gen_order:
+      if task not in second_res:
+        second_res[task] = id
+        id += 1
 
-        return aec, sl
+    gen.scheduling = first_res
+    self.scheduling = second_res
+
+  def get_schedule(self):
+    schedule = {host: [] for host in self.hosts}
+    order = self.make_task_order()
+    for task in order:
+      schedule[self.matching[task]].append(task)
+
+  def __eq__(self, other):
+    return self.scheduling == other.scheduling and self.matching == other.matching
+
+
+def _evaluation(platform_path, tasks_path, gen):
+  import logging
+  from .. import simulation
+  schedule = gen.get_schedule()
+  logging.getLogger().setLevel(logging.WARNING)
+  with simulation.Simulation(platform_path, tasks_path, log_config="root.threshold:WARNING") as simulation:
+    scheduler = _ExtrenalSchedule(simulation, schedule)
+    scheduler.run()
+    finish_time = 0
+    for t in simulation:
+      finish_time = max(finish_time, t.finish_time)
+    return finish_time
+
+
+def _serialize_graph(graph, output_file):
+  output_file.write("digraph G {\n")
+  for task in graph:
+    output_file.write('  "%s" [size="%f"];\n' % (task.name, task.amount))
+  output_file.write("\n")
+  for src, dst, data in graph.edges_iter(data=True):
+    output_file.write('  "%s" -> "%s" [size="%f"];\n' % (src.name, dst.name, data["weight"]))
+  output_file.write("}\n")
+  output_file.flush()
+
+class GA(StaticScheduler):
+  """
+  Genetic-Algorithm-Based Approach
+
+  """
+
+
+  def get_schedule(self, simulation):
+    """
+    Overridden.
+    """
+
+    nxgraph = simulation.get_task_graph()
+    platform_model = cscheduling.PlatformModel(simulation)
+    state = cscheduling.SchedulerState(simulation)
+
+    ctx = multiprocessing.get_context("spawn")
+
+    topological_order = networkx.topological_sort(nxgraph, reverse=True)
+    graph_file = tempfile.NamedTemporaryFile("w", suffix=".dot")
+    _serialize_graph(nxgraph, graph_file)
+
+    gen = Chromosome(topological_order, simulation.hosts, nxgraph)
+    with ctx.Pool(1) as process:
+      ans = process.apply(_evaluation, (simulation.platform_path, graph_file.name, gen))
+    print("ans, :", ans)
+    return gen.get_schedule()
 
