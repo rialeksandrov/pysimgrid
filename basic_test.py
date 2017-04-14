@@ -49,24 +49,14 @@ class SimpleDynamic(simdag.DynamicScheduler):
 
 
 _SCHEDULERS = {
-  "MinMin": algorithms.BatchMin,
-  "MaxMin": algorithms.BatchMax,
-  "Sufferage": algorithms.BatchSufferage,
-  "DLS": algorithms.DLS,
-  "RandomSchedule": algorithms.RandomStatic,
-  "SimpleDynamic": SimpleDynamic,
-  "MCT": algorithms.MCT,
-  "OLB": algorithms.OLB,
-  "HCPT": algorithms.HCPT,
-  "HEFT": algorithms.HEFT,
-  "Lookahead": algorithms.Lookahead,
-  "PEFT": algorithms.PEFT
+  "GA": algorithms.GA,
+  "DLS": algorithms.DLS
 }
 
 
 def run_simulation(scheduler):
   scheduler_class = _SCHEDULERS[scheduler]
-  with simdag.Simulation("test/data/pl_4hosts_master.xml", "dag/tasks_exp2/testg0.6.dot") as simulation:
+  with simdag.Simulation("test/data/pl_4hosts_master.xml", "dag/tasks_exp2/testg0.2.dot") as simulation:
     print("Scheduler:", scheduler, scheduler_class)
     scheduler = scheduler_class(simulation)
     scheduler.run()
@@ -75,7 +65,7 @@ def run_simulation(scheduler):
 
 def main():
   # single run in current process mode, used for profiling
-  if True:
+  '''if True:
     #with simdag.Simulation("test/data/pl_4hosts.xml", "test/data/basic_graph.dot") as simulation:
     with simdag.Simulation("dag2/plat_exp1/cluster_5_1-4_100_100_0.xml", "dag2/tasks_exp1/CyberShake_100.xml") as simulation:
     #with simdag.Simulation("/home/panda/devel/simgrid_experiments/dag2/plat_exp2/cluster_10_1-4_100_100_0.xml",
@@ -98,6 +88,7 @@ def main():
       print("EXEC", sum([(t.finish_time - t.start_time) for t in simulation.tasks]))
       print("COMM", sum([(t.finish_time - t.start_time) for t in simulation.connections]))
     return
+  '''
   # example: how to run multiple simulations in a single script (circumventing SimGrid limitation of 'non-restartable' simulator state)
   for scheduler in _SCHEDULERS.keys():
     p = multiprocessing.Process(target=run_simulation, args=(scheduler,))
