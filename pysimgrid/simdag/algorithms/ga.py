@@ -56,7 +56,7 @@ class Chromosome:
     self.nxgraph = nxgraph
     self.tasks = topological_order
     self.hosts = hosts
-    self.score = 0
+    self.score = -1
 
     self.matching = {}
     for task in self.tasks:
@@ -102,6 +102,7 @@ class Chromosome:
 
 
   def scheduling_mutation(self):
+    self.score = -1
     task = random.choice(self.tasks)
     left_boundary = 0
     right_boundary = len(self.tasks) - 1
@@ -122,11 +123,11 @@ class Chromosome:
     for item in self.tasks:
       if min(old_id, new_id) <= self.scheduling[item] and self.scheduling[item] <= max(old_id, new_id):
         self.scheduling[item] += add
-
     self.scheduling[task] = new_id
 
 
   def matching_mutation(self):
+    self.score = -1
     task = random.choice(self.tasks)
     self.matching[task] = random.choice(self.hosts)
 
@@ -139,6 +140,8 @@ class Chromosome:
 
 
   def matching_crossover(self, gen):
+    self.score = -1
+    gen.score = -1
     cut_off = random.randint(0, len(self.tasks) - 1)
     for task in self.tasks:
       if cut_off == 0:
@@ -148,6 +151,8 @@ class Chromosome:
 
 
   def scheduling_crossover(self, gen):
+    self.score = -1
+    gen.score = -1
     cut_off = random.randint(0, len(self.tasks) - 1)
     self_order = self.make_task_order()
     gen_order = gen.make_task_order()
@@ -323,6 +328,8 @@ class GA(StaticScheduler):
     subgraph = networkx.DiGraph()
     for task in nxgraph:
       _update_subgraph(nxgraph, subgraph, task)
+    graph_file = tempfile.NamedTemporaryFile("w", suffix=".dot")
+    _serialize_graph(subgraph, graph_file)
 
     schedules = _return_non_random_schedules(simulation)
 
@@ -336,16 +343,15 @@ class GA(StaticScheduler):
       gen = Chromosome(topological_order_without_end_and_root, hosts_without_master, nxgraph)
       popultaion.append(gen)
 
-    for epoh in range(NUMBER_OF_ITERATION):
-      print ("Starting epoh", epoh, ":")
+    for epoch in range(NUMBER_OF_ITERATION):
+      print ("Starting epoсh", epoch, ":")
 
       # Evaluation
-      with tempfile.NamedTemporaryFile("w", suffix=".dot") as graph_file:
-        _serialize_graph(subgraph, graph_file)
+      with ctx.Pool(maxtasksperchild = 1) as process:
         for gen in popultaion:
-          with ctx.Pool(1) as process:
+          if gen.score == -1:
             ans = process.apply(_evaluation, (simulation.platform_path, graph_file.name, gen.get_schedule_by_name()))
-          gen.score = ans
+            gen.score = ans
 
       # Selection
       weights = []
@@ -363,10 +369,10 @@ class GA(StaticScheduler):
 
       # Crossover
       for idx in range(POPULATION_SIZE // 2):
-        gen1 = _make_chromosome_copy(random.choice(popultaion))
-        gen2 = _make_chromosome_copy(random.choice(popultaion))
         prob = random.uniform(0, 1)
         if prob < CROSSOVER_PROBABILITY:
+          gen1 = _make_chromosome_copy(random.choice(popultaion))
+          gen2 = _make_chromosome_copy(random.choice(popultaion))
           gen1.matching_crossover(gen2)
           gen1.scheduling_crossover(gen2)
           popultaion.append(gen1)
@@ -374,9 +380,9 @@ class GA(StaticScheduler):
 
       # Mutation
       for idx in range(POPULATION_SIZE):
-        gen = _make_chromosome_copy(random.choice(popultaion))
         prob = random.uniform(0, 1)
         if prob < MUTATION_PROBABILITY:
+          gen = _make_chromosome_copy(random.choice(popultaion))
           gen.matching_mutation()
           gen.scheduling_mutation()
           popultaion.append(gen)
@@ -389,7 +395,7 @@ class GA(StaticScheduler):
           ans = process.apply(_evaluation, (simulation.platform_path, graph_file.name, gen.get_schedule_by_name()))
         gen.score = ans
         print("Scores:", ans)
-    popultaion = sorted(popultaion, key=lambda t: t.score)
+    popultaion = sorted(popultaion, key = lambda t: t.score)
     (final_schedule, final) = _restore_schedule(simulation, popultaion[0].get_schedule_by_name())
     return final_schedule, popultaion[0].score
 
