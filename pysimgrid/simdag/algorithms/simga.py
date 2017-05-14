@@ -289,7 +289,7 @@ def _make_chromosome_copy(gen):
   return new_gen
 
 
-class GA(StaticScheduler):
+class SimGA(StaticScheduler):
   """
   Genetic-Algorithm-Based Approach
 
