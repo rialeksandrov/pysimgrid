@@ -27,5 +27,6 @@ from .peft import PEFT
 from .random import RandomStatic
 from .round_robin import RoundRobinStatic
 from .dls import DLS
+from .simga import SimGA
 from .ga import GA
 from .simheft import SimHEFT
