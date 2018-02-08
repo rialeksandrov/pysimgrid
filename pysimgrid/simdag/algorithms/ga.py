@@ -211,7 +211,7 @@ def _make_final_state(simulation, gen):
     if cscheduling.try_schedule_boundary_task(task_to_schedule, platform_model, state) == False:
       host_to_schedule = gen.matching[task_to_schedule]
       # print(host_to_schedule.name)
-      est = platform_model.est(host_to_schedule, gen.nxgraph.pred[task_to_schedule], state)
+      est = platform_model.est(host_to_schedule, dict(gen.nxgraph.pred[task_to_schedule]), state)
       eet = platform_model.eet(task_to_schedule, host_to_schedule)
       timesheet = state.timetable[host_to_schedule]
       pos, start, finish = cscheduling.timesheet_insertion(timesheet, est, eet)
@@ -265,16 +265,17 @@ class GA(StaticScheduler):
     """
     random.seed(12345)
     POPULATION_SIZE = 50
-    NUMBER_OF_ITERATION = 1000
+    NUMBER_OF_ITERATION = 100
     RANK_CONSTANT = 1.1
     CROSSOVER_PROBABILITY = 1.0
     MUTATION_PROBABILITY = 0.8
+    SILENT_MODE = True
 
     nxgraph = simulation.get_task_graph()
     platform_model = cscheduling.PlatformModel(simulation)
     state = cscheduling.SchedulerState(simulation)
 
-    topological_order = networkx.topological_sort(nxgraph, reverse=False)
+    topological_order = list(networkx.topological_sort(nxgraph))
     topological_order_without_end_and_root = []
     for task in topological_order:
       if task.name == "root" or task.name == "end":
@@ -300,7 +301,8 @@ class GA(StaticScheduler):
       popultaion.append(gen)
 
     for epoch in range(NUMBER_OF_ITERATION):
-      print ("Starting epoсh", epoch, ":")
+      if SILENT_MODE == False:
+        print ("Starting epoсh", epoch, ":")
 
       # Evaluation
       for gen in popultaion:
@@ -314,7 +316,8 @@ class GA(StaticScheduler):
       for i in range(population_size):
         weights.append(RANK_CONSTANT ** (population_size - i - 1) * (RANK_CONSTANT - 1))
       popultaion = sorted(popultaion, key = lambda t: t.score)
-      print ("Best score", popultaion[0].score)
+      if SILENT_MODE == False:
+        print ("Best score", popultaion[0].score)
       new_population = []
       for idx in range(POPULATION_SIZE):
         index_to_push = _weighted_choice(weights)
@@ -346,7 +349,8 @@ class GA(StaticScheduler):
     for gen in popultaion:
       ans = _evaluation(simulation, gen)
       gen.score = ans
-      print("Scores:", ans)
+      if SILENT_MODE == False:
+        print("Scores:", ans)
     popultaion = sorted(popultaion, key = lambda t: t.score)
     final_state = _make_final_state(simulation, popultaion[0])
     return final_state.schedule, popultaion[0].score

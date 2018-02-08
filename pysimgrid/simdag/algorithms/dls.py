@@ -113,7 +113,7 @@ class DLS(StaticScheduler):
       assert (cur_max != unreal_dl)
 
       if cscheduling.try_schedule_boundary_task(task_to_schedule, platform_model, state) == False:
-          est = platform_model.est(host_to_schedule, nxgraph.pred[task_to_schedule], state)
+          est = platform_model.est(host_to_schedule, dict(nxgraph.pred[task_to_schedule]), state)
           eet = platform_model.eet(task_to_schedule, host_to_schedule)
           timesheet = state.timetable[host_to_schedule]
           pos, start, finish = cscheduling.timesheet_insertion(timesheet, est, eet)
@@ -145,7 +145,7 @@ class DLS(StaticScheduler):
 
   @classmethod
   def calculate_dl(cls, nxgraph, platform_model, state, sl, aec, task, host):
-    est = platform_model.est(host, nxgraph.pred[task], state)
+    est = platform_model.est(host, dict(nxgraph.pred[task]), state)
     eet = platform_model.eet(task, host)
     timesheet = state.timetable[host]
     pos, start, finish = cscheduling.timesheet_insertion(timesheet, est, eet)
@@ -165,7 +165,7 @@ class DLS(StaticScheduler):
         sl: task->static_level_value
     """
     mean_speed = platform_model.mean_speed
-    topological_order = networkx.topological_sort(nxgraph, reverse=True)
+    topological_order = list(reversed(list(networkx.topological_sort(nxgraph))))
 
     # Average execution cost
     aec = {task: float(task.amount) / mean_speed for task in nxgraph}
