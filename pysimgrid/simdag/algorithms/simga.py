@@ -247,8 +247,8 @@ def _serialize_graph(graph, output_file):
   for task in graph:
     output_file.write('  "%s" [size="%f"];\n' % (task.name, task.amount))
   output_file.write("\n")
-  for src, dst, data in graph.edges_iter(data=True):
-    output_file.write('  "%s" -> "%s" [size="%f"];\n' % (src.name, dst.name, data["weight"]))
+  for src, dst, data in graph.edges(data='weight'):
+    output_file.write('  "%s" -> "%s" [size="%f"];\n' % (src.name, dst.name, data))
   output_file.write("}\n")
   output_file.flush()
 
@@ -257,7 +257,7 @@ def _update_subgraph(full, subgraph, task):
   parents = full.pred[task]
   subgraph.add_node(task)
   for parent, edge_dict in parents.items():
-    subgraph.add_edge(parent, task, edge_dict)
+    subgraph.add_edge(parent, task, weight=edge_dict["weight"])
 
 
 def _return_non_random_schedules(simulation):
@@ -310,7 +310,7 @@ class SimGA(StaticScheduler):
     platform_model = cscheduling.PlatformModel(simulation)
     state = cscheduling.SchedulerState(simulation)
 
-    topological_order = networkx.topological_sort(nxgraph, reverse=False)
+    topological_order = list(reversed(list(networkx.topological_sort(nxgraph))))
     topological_order_without_end_and_root = []
     for task in topological_order:
       if task.name == "root" or task.name == "end":
