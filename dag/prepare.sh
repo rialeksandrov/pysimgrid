@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-DAGGEN_PATH="$HOME/devel/daggen/daggen"
+DAGGEN_PATH="$HOME/github/daggen/daggen"
 
 pushd "$SCRIPT_DIR/.."
 
@@ -19,9 +19,9 @@ fi
 # Latency:   100 us
 #
 if [ ! -d "$SCRIPT_DIR/plat_exp1" ]; then
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp1" 100 cluster 5 1-4 100 100 --include_master
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp1" 100 cluster 10 1-4 100 100 --include_master
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp1" 100 cluster 20 1-4 100 100 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp1" 100 cluster 5 1-4 100 100 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp1" 100 cluster 10 1-4 100 100 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp1" 100 cluster 20 1-4 100 100 --include_master
 fi
 
 #
@@ -33,25 +33,38 @@ fi
 # Latency:   0
 #
 if [ ! -d "$SCRIPT_DIR/plat_exp1_inf" ]; then
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp1_inf" 100 cluster 5 1-4 1e12 0 --include_master
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp1_inf" 100 cluster 10 1-4 1e12 0 --include_master
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp1_inf" 100 cluster 20 1-4 1e12 0 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp1_inf" 100 cluster 5 1-4 1e12 0 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp1_inf" 100 cluster 10 1-4 1e12 0 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp1_inf" 100 cluster 20 1-4 1e12 0 --include_master
 fi
 
 
 if [ ! -d "$SCRIPT_DIR/plat_exp2" ]; then
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp2" 1 cluster 10 1-4 100 100 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp2" 1 cluster 10 1-4 100 100 --include_master
 fi
 
 
 if [ ! -d "$SCRIPT_DIR/plat_exp2_inf" ]; then
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp2_inf" 1 cluster 10 1-4 1e12 0 --loopback_bandwidth=1e12 --loopback_latency=0 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp2_inf" 1 cluster 10 1-4 1e12 0 --loopback_bandwidth=1e12 --loopback_latency=0 --include_master
 fi
 
 
-if [ ! -d "$SCRIPT_DIR/tasks_exp2" ]; then
-  python3 -m pysimgrid.tools.dag_gen "$DAGGEN_PATH" "$SCRIPT_DIR/tasks_exp2" --count 100 --fat 0.5 0.65 0.8 --density 0.1 --jump 2 --force_ccr 1 10 100 500 1000 --repeat 100
-fi
+fat_arr=(0.5 0.65 0.8)
+ccr_arr=(1 10 100 500 1000)
+idx=1
+for fat in ${fat_arr[*]}
+do
+    printf "   %s\n" $fat
+    for ccr in ${ccr_arr[*]}
+    do
+        printf "   %s\n" $ccr
+        if [ ! -d "$SCRIPT_DIR/tasks_exp2_$idx" ]; then
+          DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.dag_gen "$DAGGEN_PATH" "$SCRIPT_DIR/tasks_exp2_$idx" --count 100 --fat $fat --density 0.1 --jump 2 --force_ccr $ccr --repeat 100
+        fi
+        idx=$((idx+1))
+        printf "   %s\n" $idx
+    done
+done
 
 #
 # Experiment 3:
@@ -62,19 +75,19 @@ fi
 # Latency:   100 us
 #
 if [ ! -d "$SCRIPT_DIR/plat_exp3" ]; then
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 5 1-4 100 100 --include_master
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 10 1-4 100 100 --include_master
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 20 1-4 100 100 --include_master
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 5 1-4 20 100 --include_master
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 10 1-4 20 100 --include_master
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 20 1-4 20 100 --include_master
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 5 1-4 10 100 --include_master
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 10 1-4 10 100 --include_master
-  python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 20 1-4 10 100 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 5 1-4 100 100 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 10 1-4 100 100 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 20 1-4 100 100 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 5 1-4 20 100 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 10 1-4 20 100 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 20 1-4 20 100 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 5 1-4 10 100 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 10 1-4 10 100 --include_master
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen "$SCRIPT_DIR/plat_exp3" 1 cluster 20 1-4 10 100 --include_master
 fi
 
 if [ ! -d "$SCRIPT_DIR/tasks_exp3" ]; then
-  python3 -m pysimgrid.tools.dag_gen "$DAGGEN_PATH" "$SCRIPT_DIR/tasks_exp3" --count 20 40 60 80 100 --fat 0.1 0.2 0.4 --density 0.1 0.2 0.3 0.4 --jump 1 2 3 --regular 0.1 0.5 0.9 --repeat 5
+  DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.dag_gen "$DAGGEN_PATH" "$SCRIPT_DIR/tasks_exp3" --count 20 40 60 80 100 --fat 0.1 0.2 0.4 --density 0.1 0.2 0.3 0.4 --jump 1 2 3 --regular 0.1 0.5 0.9 --repeat 5
 fi
 
 
