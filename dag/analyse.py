@@ -73,18 +73,18 @@ def main():
 
   MODES.get(args.mode)(results)
 
-
+ALL_FIELD = "makespan"
+ALL_REFERENCE_ALGO_IDX = 0
 def normtime_all_algo(results, cond1, cond2):
-  ALGO_ORDER = ["OLB", "MCT", "Random", "RoundRobin", "HCPT", "HEFT", "Lookahead", "PEFT"]
-  REFERENCE_ALGO = "OLB"
+  ALGO_ORDER = ["OLB", "MCT", "BatchMin", "BatchMax", "BatchSufferage", "HCPT", "HEFT", "Lookahead", "PEFT", "Random", "RoundRobin", "DLS"]
   # evaluate normalized results
   for task, bytask in groupby(results, get_taskfile_name):
     for platform, byplat in groupby(bytask, get_platform_name):
       algorithm_results = groupby(byplat, get_algorithm, False)
-      assert len(algorithm_results[REFERENCE_ALGO]) == 1
-      reference = algorithm_results[REFERENCE_ALGO][0]
+      assert len(algorithm_results[ALGO_ORDER[ALL_REFERENCE_ALGO_IDX]]) == 1
+      reference = algorithm_results[ALGO_ORDER[ALL_REFERENCE_ALGO_IDX]][0]
       for algorithm, byalg in algorithm_results.items():
-        byalg[0]["result"] = byalg[0]["makespan"] / reference["makespan"]
+        byalg[0]["result"] = byalg[0][ALL_FIELD] / reference[ALL_FIELD]
 
   latex_table(results, ALGO_ORDER, cond1, cond2)
 
@@ -122,9 +122,13 @@ def latex_table(results, algorithms, cond1, cond2):
     """) % (len(algorithms) + 1, c1))
     for c2, bycond2 in sorted(groupby(bycond1, cond2)):
       print("%-15s" % c2, end="")
+      results = sorted(groupby(bycond2, get_algorithm), key=lambda pair: algorithms.index(pair[0]))
+      reference_algo, reference_result = results[ALL_REFERENCE_ALGO_IDX]
+      reference_var = numpy.var([r[ALL_FIELD] for r in reference_result])
       for algorithm, byalg in sorted(groupby(bycond2, get_algorithm), key=lambda pair: algorithms.index(pair[0])):
         mean = numpy.mean([r["result"] for r in byalg])
-        print(" & %10.4f" % mean, end="")
+        var = numpy.var([r[ALL_FIELD] for r in byalg]) / reference_var
+        print(" & %6.4f (%6.4f)" % (mean, var), end="")
       print(r" \\")
     print(r"\midrule")
   print(par(r"""
