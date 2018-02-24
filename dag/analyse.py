@@ -122,13 +122,10 @@ def latex_table(results, algorithms, cond1, cond2):
     """) % (len(algorithms) + 1, c1))
     for c2, bycond2 in sorted(groupby(bycond1, cond2)):
       print("%-15s" % c2, end="")
-      results = sorted(groupby(bycond2, get_algorithm), key=lambda pair: algorithms.index(pair[0]))
-      reference_algo, reference_result = results[ALL_REFERENCE_ALGO_IDX]
-      reference_var = numpy.var([r[ALL_FIELD] for r in reference_result])
       for algorithm, byalg in sorted(groupby(bycond2, get_algorithm), key=lambda pair: algorithms.index(pair[0])):
         mean = numpy.mean([r["result"] for r in byalg])
-        var = numpy.var([r[ALL_FIELD] for r in byalg]) / reference_var
-        print(" & %6.4f (%6.4f)" % (mean, var), end="")
+        std = numpy.std([r["result"] for r in byalg])
+        print(" & %6.4f (%6.4f)" % (mean, std), end="")
       print(r" \\")
     print(r"\midrule")
   print(par(r"""
