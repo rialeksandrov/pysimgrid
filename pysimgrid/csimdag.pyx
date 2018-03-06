@@ -182,6 +182,8 @@ def exit():
   csimdag.SD_exit()
 
 
+cdef char* FAKE_AMOUNT = 'FAKE_AMOUNT'
+
 cdef class Task:
   """
   SimDAG task representation.
@@ -260,6 +262,19 @@ cdef class Task:
       raise Exception("cannot estimate communication time for computational task")
     return cplatform.SD_route_get_latency(src.impl, dst.impl) + self.amount / cplatform.SD_route_get_bandwidth(src.impl, dst.impl)
 
+  def change_amount(self, double new_value):
+    """
+    Wow new method, enjoy!
+    """
+    self.__check_impl()
+    if FAKE_AMOUNT in self.user_data:
+        csimdag.SD_task_set_amount(self.impl, new_value)
+    else:
+        self.user_data[FAKE_AMOUNT] = self.amount
+        csimdag.SD_task_set_amount(self.impl, new_value)
+
+
+
   def dump(self):
     """
     Dump task state to stdout in SimGrid format.
@@ -301,8 +316,11 @@ cdef class Task:
     """
     Get task 'size': flops for computational tasks, bytes for transfer tasks.
     """
-    self.__check_impl()
-    return csimdag.SD_task_get_amount(self.impl)
+    if FAKE_AMOUNT in self.user_data:
+        return self.user_data[FAKE_AMOUNT]
+    else:
+        self.__check_impl()
+        return csimdag.SD_task_get_amount(self.impl)
 
   @property
   def kind(self):
@@ -399,6 +417,7 @@ cdef class Task:
     Basic initialization.
     """
     self.impl = NULL
+    self.user_data = {}
 
   def __check_impl(self):
     """

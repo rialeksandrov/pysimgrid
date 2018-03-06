@@ -53,6 +53,7 @@ class Simulation(object):
     self._hosts = None
     self._tasks = None
     self._logger = logging.getLogger("simdag.Simulation")
+    self._changer = ChangeExecutionAmount()
     if not os.path.isfile(self._platform_src):
       raise IOError("platform definition file {} does not exist".format(self._platform_src))
     if not os.path.isfile(self._tasks_src):
@@ -135,6 +136,10 @@ class Simulation(object):
     """
     return csimdag.get_clock()
 
+  def add_dispersion(self):
+    for task in self.tasks:
+      task.change_amount(self._changer.generate_new_amount(task.amount))
+
   def __enter__(self):
     """
     Context interface implementation.
@@ -162,6 +167,7 @@ class Simulation(object):
     self._logger.debug("Loading task definition (source: %s)", self._tasks_src)
     tasks = csimdag.load_tasks(self._tasks_src)
     self._tasks = [_SimulationTask(t.native, self, self._logger) for t in tasks]
+    self.add_dispersion()
     comm_tasks_count = len(self.connections)
     self._logger.debug("Tasks loaded, %d nodes, %d links", len(self._tasks) - comm_tasks_count, comm_tasks_count)
 
@@ -177,6 +183,31 @@ class Simulation(object):
     csimdag.exit()
     return False
 
+from enum import Enum
+import numpy as np
+
+class ChangeExecutionAmount(object):
+
+  class types(Enum):
+    SIMPLE = 0
+
+  def __init__(self, type=types.SIMPLE, percent=0.9):
+    self.type = type
+    self.percent = percent
+
+  def generate_new_amount(self, amount):
+    if amount == 0:
+      return 0
+
+    if self.type == self.types.SIMPLE:
+      return self.simple_change(amount)
+
+    return amount
+
+  def simple_change(self, amount):
+    low = max(int(amount - self.percent * amount), 1)
+    high = max(int(amount + self.percent * amount), low + 1)
+    return np.random.randint(low=low, high=high)
 
 class _SimulationTask(csimdag.Task):
   """
