@@ -1,0 +1,85 @@
+{
+  "platforms" : [
+    {
+      "path" : "plat_exp1_1",
+      "name" : "plat1_1",
+      "parameters" : {
+        "generate" : true,
+        "args" : "100 cluster 5 1-4 100 100 --include_master"
+      }
+    },
+    {
+      "path" : "plat_exp1_2",
+      "name" : "plat1_2",
+      "parameters" : {
+        "generate" : true,
+        "args" : "100 cluster 10 1-4 100 100 --include_master"
+      }
+    },
+    {
+      "path" : "plat_exp1_3",
+      "name" : "plat1_3",
+      "parameters" : {
+        "generate" : true,
+        "args" : "100 cluster 20 1-4 100 100 --include_master"
+      }
+    }
+  ],
+
+  "tasks" : [
+    {
+      "path" : "tasks_exp1",
+      "name" : "tasks1",
+      "parameters" : {
+        "generate" : false
+      }
+    }
+  ],
+
+  "simulation" : {
+    "randomized": true,
+    "changer_parameters" : {
+      "type" : "Simple",
+      "percent" : 10
+    }
+  },
+
+  "algorithms" : [
+    {
+      "class": "pysimgrid.simdag.algorithms.OLB",
+      "name": "OLB"
+    },
+    {
+      "class": "pysimgrid.simdag.algorithms.MCT",
+      "name": "MCT"
+    },
+    {
+      "class": "pysimgrid.simdag.algorithms.BatchMin",
+      "name": "BatchMin"
+    },
+    {
+      "class": "pysimgrid.simdag.algorithms.BatchMax",
+      "name": "BatchMax"
+    },
+    {
+      "class": "pysimgrid.simdag.algorithms.BatchSufferage",
+      "name": "Sufferage"
+    },
+    {
+      "class": "pysimgrid.simdag.algorithms.HCPT",
+      "name": "HCPT"
+    },
+    {
+      "class": "pysimgrid.simdag.algorithms.HEFT",
+      "name": "HEFT"
+    },
+    {
+      "class": "pysimgrid.simdag.algorithms.Lookahead",
+      "name": "Lookahead"
+    },
+    {
+      "class": "pysimgrid.simdag.algorithms.PEFT",
+      "name": "PEFT"
+    }
+  ]
+}

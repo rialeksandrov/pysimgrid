@@ -42,7 +42,7 @@ class Simulation(object):
     "network/model": "LV08"
   }
 
-  def __init__(self, platform, tasks, config=None, log_config=None):
+  def __init__(self, platform, tasks, config=None, log_config=None, args=None):
     self._platform_src = platform
     self._tasks_src = tasks
     self._config = self._DEFAULT_CONFIG
@@ -53,7 +53,11 @@ class Simulation(object):
     self._hosts = None
     self._tasks = None
     self._logger = logging.getLogger("simdag.Simulation")
-    self._changer = ChangeExecutionAmount()
+    if args != None and args["randomized"] == True:
+      changer_params = args["changer_parameters"]
+      self._changer = ChangeExecutionAmount(percent=changer_params["percent"])
+    else:
+      self._changer = None
     if not os.path.isfile(self._platform_src):
       raise IOError("platform definition file {} does not exist".format(self._platform_src))
     if not os.path.isfile(self._tasks_src):
@@ -137,6 +141,8 @@ class Simulation(object):
     return csimdag.get_clock()
 
   def add_dispersion(self):
+    if self._changer == None:
+      return
     for task in self.tasks:
       task.change_amount(self._changer.generate_new_amount(task.amount))
 

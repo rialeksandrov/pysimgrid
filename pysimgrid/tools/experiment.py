@@ -117,7 +117,7 @@ def import_algorithm(algorithm):
 
 
 def run_experiment(job):
-  platform, tasks, algorithm, config = job
+  platform, tasks, algorithm, config, args = job
   python_log_level, simgrid_log_level = config["log_level"], config["simgrid_log_level"]
   stop_on_error = config["stop_on_error"]
   logging.getLogger().setLevel(python_log_level)
@@ -127,7 +127,7 @@ def run_experiment(job):
   # init return values with NaN's
   makespan, exec_time, comm_time, sched_time, exp_makespan = [float("NaN")] * 5
   try:
-    with simdag.Simulation(platform, tasks, log_config="root.threshold:" + simgrid_log_level) as simulation:
+    with simdag.Simulation(platform, tasks, log_config="root.threshold:" + simgrid_log_level, args=args) as simulation:
       scheduler = scheduler_class(simulation)
       scheduler.run()
       makespan = simulation.clock
@@ -177,7 +177,7 @@ def main():
   parser = argparse.ArgumentParser(description="Run experiments for a set of scheduling algorithms")
   parser.add_argument("platforms", type=str, help="path to file or directory containing platform definitions (*.xml)")
   parser.add_argument("tasks", type=str, help="path to file or directory containing task definitions (*.dax, *.dot)")
-  parser.add_argument("algorithms", type=str, help="path to json defining the algorithms to use")
+  parser.add_argument("config", type=str, help="path to json defining the experiment config")
   parser.add_argument("output", type=str, help="path to the output file")
   parser.add_argument("-j", "--jobs", type=int, default=1, help="number of parallel jobs to run")
   parser.add_argument("-l", "--log-level", type=str, choices=["debug", "info", "warning", "error", "critical"],
@@ -192,10 +192,14 @@ def main():
   logging.basicConfig(level=logging.DEBUG, format=_LOG_FORMAT, datefmt=_LOG_DATE_FORMAT)
   logger = logging.getLogger("Experiment")
 
-  with open(args.algorithms, "r") as alg_file:
-    algorithms = json.load(alg_file)
+  with open(args.config, "r") as file:
+    config = json.load(file)
+    algorithms = config["algorithms"]
     if not isinstance(algorithms, list):
       algorithms = [algorithms]
+    simulation_args = config["simulation"]
+    if not isinstance(simulation_args, list):
+      simulation_args = [simulation_args]
     # we can allow non-unique algorithm names. but really shoudn't as it can mess up the results.
     algorithm_names = set([a["name"] for a in algorithms])
     if len(algorithms) != len(algorithm_names):
@@ -216,7 +220,7 @@ def main():
 
   # convert to list just get length nicely
   #   can be left as an iterator, but memory should not be the issue
-  jobs = list(itertools.product(platforms, tasks, algorithms, config))
+  jobs = list(itertools.product(platforms, tasks, algorithms, config, simulation_args))
 
   # report experiment setup
   #   looks scary, but it's probably a shortest way to do this in terms of LOC
@@ -251,7 +255,7 @@ def main():
   ctx = multiprocessing.get_context("spawn")
   with NoDaemonPool(processes=args.jobs, maxtasksperchild=1, context=ctx) as pool:
     for job, makespan, exec_time, comm_time, sched_time, exp_makespan in progress_reporter(pool.imap_unordered(run_experiment, jobs, 1), len(jobs), logger):
-      platform, tasks, algorithm, _ = job
+      platform, tasks, algorithm, _, _ = job
       results.append({
         "platform": platform,
         "tasks": tasks,
