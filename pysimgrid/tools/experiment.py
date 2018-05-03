@@ -61,6 +61,7 @@ import os
 import textwrap
 import time
 import traceback
+import ntpath
 
 from .. import simdag
 
@@ -115,6 +116,64 @@ def import_algorithm(algorithm):
   assert isinstance(result, type)
   return result
 
+def make_gantt(simultation, platform, tasks, algorithm_class, args):
+  if args["print_plotly_gantt"] == False and args["print_matplotlib_gantt"] == False:
+    return
+  _, platform_name = ntpath.split(platform)
+  _, task_name = ntpath.split(tasks)
+  name = str(platform_name) + "_" + str(task_name) + "_" + str(algorithm_class)
+  if args["print_plotly_gantt"]:
+    import plotly.plotly as py
+    import plotly.figure_factory as ff
+    colors = {'Not Started': 'rgb(220, 0, 0)',
+              'Incomplete': (1, 0.9, 0.16),
+              'Complete': 'rgb(0, 255, 100)'}
+    df = []
+    for task in simultation.tasks:
+      host = task.hosts
+      assert (len(host) == 1)
+      to_add = dict(Task=str(host[0].name),
+                    Start=datetime.datetime.fromtimestamp(int(task.start_time)).strftime('%Y-%m-%d %H:%M:%S'),
+                    Finish=datetime.datetime.fromtimestamp(int(task.finish_time)).strftime('%Y-%m-%d %H:%M:%S'),
+                    Resource='Complete')
+      df.append(to_add)
+
+    py.sign_in(args["plotly_login"]["username"], args["plotly_login"]["token"])
+
+    fig = ff.create_gantt(df, colors=colors, index_col='Resource', show_colorbar=True, group_tasks=True)
+    py.image.save_as(fig, name + "_plotly.jpeg")
+  if args["print_matplotlib_gantt"]:
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    colors = {'Not Started': "gold",
+              'Incomplete': "red",
+              'Complete': "limegreen"}
+    df = []
+    for task in simultation.tasks:
+      host = task.hosts
+      assert (len(host) == 1)
+      to_add = dict(Task=str(host[0].name),
+                    Start=task.start_time,
+                    Finish=task.finish_time,
+                    Resource='Complete')
+      df.append(to_add)
+    df = pd.DataFrame(df)
+    df["Diff"] = df.Finish - df.Start
+    fig, ax = plt.subplots(figsize=(6, 3))
+
+    labels = []
+    for i, task in enumerate(df.groupby("Task")):
+      labels.append(task[0])
+      for r in task[1].groupby("Resource"):
+        data = r[1][["Start", "Diff"]]
+        ax.broken_barh(data.values, (i - 0.4, 0.8), color=colors[r[0]])
+
+    ax.set_yticks(range(len(labels)))
+    ax.set_yticklabels(labels)
+    ax.set_xlabel("time [ms]")
+    plt.tight_layout()
+    fig = plt.gcf()
+    fig.savefig(name + "_matplotlib.png", dpi=400)
 
 def run_experiment(job):
   platform, tasks, algorithm, config, args = job
@@ -134,6 +193,7 @@ def run_experiment(job):
       exec_time = sum([t.finish_time - t.start_time for t in simulation.tasks])
       comm_time = sum([t.finish_time - t.start_time for t in simulation.all_tasks[simdag.TaskKind.TASK_KIND_COMM_E2E]])
       sched_time = scheduler.scheduler_time
+      make_gantt(simulation, platform, tasks, algorithm["class"], args)
       if scheduler.expected_makespan is not None:
         exp_makespan = scheduler.expected_makespan
   except Exception:
