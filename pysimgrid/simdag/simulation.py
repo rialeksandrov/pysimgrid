@@ -16,6 +16,7 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import operator
 import collections
 import logging
 import networkx
@@ -146,6 +147,25 @@ class Simulation(object):
     for task in self.tasks:
       task.change_amount(self._changer.generate_new_amount(task.amount))
 
+  def sanity_check(self):
+    """
+    Check whether tasks execution intersect on hosts or not.
+    """
+    timetable_per_host = {}
+    for task in self.tasks:
+      host = task.hosts
+      assert(len(host) == 1)
+      if host[0].name not in timetable_per_host:
+        timetable_per_host[host[0].name] = []
+      timetable_per_host[host[0].name].append((task.start_time, task.finish_time))
+    for host in timetable_per_host:
+      last_ended = -1
+      for task_time in sorted(timetable_per_host[host], key=operator.itemgetter(0)):
+        if task_time[0] > last_ended:
+          return False
+        last_ended = task_time[1]
+    return True
+
   def __enter__(self):
     """
     Context interface implementation.
@@ -186,6 +206,10 @@ class Simulation(object):
     Context interface implementation.
     """
     self._logger.info("Finalizing the simulation (clock: %.2f)", self.clock)
+    if self.sanity_check():
+      raise Exception("Sanity check FAILED. Hosts' timetables are invalid")
+    else:
+      self._logger.debug("Sanity check SUCCEED. Hosts' timetables are valid")
     csimdag.exit()
     return False
 
