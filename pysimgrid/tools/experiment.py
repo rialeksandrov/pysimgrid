@@ -121,7 +121,7 @@ def make_gantt(simultation, platform, tasks, algorithm_class, args):
     return
   _, platform_name = ntpath.split(platform)
   _, task_name = ntpath.split(tasks)
-  name = str(platform_name) + "_" + str(task_name) + "_" + str(algorithm_class)
+  name = args["name"] + "_" + str(platform_name) + "_" + str(task_name) + "_" + str(algorithm_class)
   if args["print_plotly_gantt"]:
     import plotly.plotly as py
     import plotly.figure_factory as ff
@@ -145,20 +145,37 @@ def make_gantt(simultation, platform, tasks, algorithm_class, args):
   if args["print_matplotlib_gantt"]:
     import pandas as pd
     import matplotlib.pyplot as plt
-    colors = {'Not Started': "gold",
-              'Incomplete': "red",
-              'Complete': "limegreen"}
+    colors = {'Complete1': "gold",
+              'Connection': "red",
+              'Complete2': "limegreen"}
     df = []
+    for task in simultation.connections:
+      hosts = task.hosts
+      if len(hosts) == 2:
+        if hosts[0].name == hosts[1].name:
+          continue
+        to_add = dict(Task=str(hosts[1].name),
+                      Start=task.start_time,
+                      Finish=task.finish_time,
+                      Diff=task.finish_time - task.start_time,
+                      Resource='Connection')
+        df.append(to_add)
+
+    host_color = {}
     for task in simultation.tasks:
-      host = task.hosts
-      assert (len(host) == 1)
-      to_add = dict(Task=str(host[0].name),
+      hosts = task.hosts
+      assert (len(hosts) == 1)
+      host = hosts[0].name
+      if host not in host_color:
+        host_color[host] = ["Complete1", "Complete2"]
+      to_add = dict(Task=str(host),
                     Start=task.start_time,
                     Finish=task.finish_time,
-                    Resource='Complete')
+                    Diff=task.finish_time - task.start_time,
+                    Resource=host_color[host][0])
+      host_color[host][0], host_color[host][1] = host_color[host][1], host_color[host][0]
       df.append(to_add)
     df = pd.DataFrame(df)
-    df["Diff"] = df.Finish - df.Start
     fig, ax = plt.subplots(figsize=(6, 3))
 
     labels = []
