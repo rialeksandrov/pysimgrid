@@ -5,7 +5,7 @@ import argparse
 import json
 import os
 
-def run_experiment(plat, task, config_path):
+def run_experiment(plat, task, config_path, folder):
   plat_name = plat["name"]
   plat_path = plat["path"]
   task_name = task["name"]
@@ -13,12 +13,12 @@ def run_experiment(plat, task, config_path):
 
   plat_path = os.path.realpath(os.path.join(os.path.dirname(__file__), plat_path))
   task_path = os.path.realpath(os.path.join(os.path.dirname(__file__), task_path))
-  result_path = os.path.realpath(os.path.join(os.path.dirname(__file__), plat_name + "_" + task_name))
+  result_json = os.path.realpath(os.path.join(os.path.dirname(__file__), folder, plat_name + "_" + task_name + ".json"))
 
   # print(plat_path, task_path, result_path)
 
-  if os.path.exists(result_path):
-    print(result_path + " already exist")
+  if os.path.exists(result_json):
+    print(result_json + " already exist")
     return
   if os.path.exists(plat_path) == False:
     print(plat_path + " doesn't exist")
@@ -28,7 +28,7 @@ def run_experiment(plat, task, config_path):
     return
 
   os.system("cd .. && DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.experiment "
-            + plat_path + " " + task_path + " " + config_path + " " + result_path + " -j8")
+            + plat_path + " " + task_path + " " + config_path + " " + result_json + " -j8")
 
 
 
@@ -46,6 +46,11 @@ def main():
     # print(config_path)
     config = json.load(file)
 
+    experiment_name = config["simulation"]["name"]
+    data_path = os.path.realpath(os.path.join(os.path.dirname(__file__), experiment_name))
+    if os.path.exists(data_path) == False:
+      os.mkdir(data_path)
+
     tasks = config["tasks"]
     if not isinstance(tasks, list):
       tasks = [tasks]
@@ -55,7 +60,7 @@ def main():
       platforms = [platforms]
     for plat in platforms:
       for task in tasks:
-        run_experiment(plat, task, config_path)
+        run_experiment(plat, task, config_path, experiment_name)
 
 
 
