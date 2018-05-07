@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 
+PYDAGGEN_PATH = "$HOME/github/pydaggen/daggen.py"
 
 def gen_plat(config):
   name = config["name"]
@@ -12,12 +13,11 @@ def gen_plat(config):
   parameters = config["parameters"]
   gen = parameters["generate"]
   if gen == False:
-    # print(gen)
     return
   cur_dir = os.path.dirname(__file__)
   gen_path = os.path.realpath(os.path.join(cur_dir, path))
   if os.path.exists(gen_path):
-    # print(gen_path)
+    print(gen_path + " already exist")
     return
   os.system("cd .. && DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.plat_gen " +
             gen_path + " " + parameters["args"])
@@ -28,15 +28,14 @@ def gen_tasks(config):
   parameters = config["parameters"]
   gen = parameters["generate"]
   if gen == False:
-    # print(gen)
     return
   cur_dir = os.path.dirname(__file__)
   gen_path = os.path.realpath(os.path.join(cur_dir, path))
   if os.path.exists(gen_path):
-    # print(gen_path)
+    print(gen_path + " already exist")
     return
   os.system("cd .. && DYLD_LIBRARY_PATH=$HOME/github/pysimgrid/opt/SimGrid/lib/ python3 -m pysimgrid.tools.dag_gen " +
-            gen_path + " " + parameters["args"])
+            PYDAGGEN_PATH + " " + gen_path + " " + parameters["args"] + " --use_pydaggen 1")
 
   # print(name, path)
 

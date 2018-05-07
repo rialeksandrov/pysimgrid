@@ -151,10 +151,10 @@ def apply_force_ccr(graph, target_ccr):
 
 
 def daggen(daggen_path, n=10, ccr=0, mindata=2048, maxdata=11264, jump=1, fat=0.5, regular=0.9, density=0.5,
-           force_ccr=None, seed=0):
+           force_ccr=None, use_pydaggen=False, seed=0):
     daggen_path = os.path.normpath(daggen_path)
     params = [
-        ("-n", n), # ("--n", n)
+        ("-n", n),
         ("--ccr", ccr),
         ("--mindata", mindata),
         ("--maxdata", maxdata),
@@ -164,8 +164,9 @@ def daggen(daggen_path, n=10, ccr=0, mindata=2048, maxdata=11264, jump=1, fat=0.
         ("--density", density),
         ("--minalpha", 1),
         ("--maxalpha", 1)
-        #,("--seed", seed)
     ]
+    if use_pydaggen:
+        params.append(("--seed", seed))
     if not os.path.isfile(daggen_path):
         raise Exception("daggen executable '{}' does not exist".format(daggen_path))
     args = [daggen_path]
@@ -176,9 +177,12 @@ def daggen(daggen_path, n=10, ccr=0, mindata=2048, maxdata=11264, jump=1, fat=0.
     if hasattr(subprocess, "DEVNULL"):
       kwargs["stderr"] = subprocess.DEVNULL
     output = subprocess.check_output(args, **kwargs)
-    graph = _import_daggen(output.decode("ascii").split("\n"))
-    #with open('output.txt', 'r') as file:
-      #graph = _import_daggen(file)
+    if use_pydaggen:
+      output_file = os.path.join(os.path.dirname(daggen_path), "output.txt")
+      with open(output_file, 'r') as file:
+        graph = _import_daggen(file)
+    else:
+      graph = _import_daggen(output.decode("ascii").split("\n"))
     return apply_force_ccr(graph, force_ccr)
 
 
@@ -196,6 +200,8 @@ def main():
   parser.add_argument("--density", type=float, nargs="*", default=[0.5], help="determines number of connections between different DAG levels")
   parser.add_argument("--force_ccr", type=float, nargs="*", default=[], help="if set, enables forced granularity for the tasks (GFlops = k * sum(MBs))")
   parser.add_argument("--repeat", type=int, default=1, help="number of random graphs for each configuration")
+  parser.add_argument("--seed", type=int, default=314, help="seed for random generator")
+  parser.add_argument("--use_pydaggen", type=bool, default=False, help="using new python DAG generator")
 
   args = parser.parse_args()
   if not args.force_ccr:
@@ -203,10 +209,10 @@ def main():
 
   if not os.path.exists(args.output_dir):
     os.makedirs(args.output_dir)
-  seed = 0
+  seed = args.seed
   for config in itertools.product(args.count, args.ccr, args.mindata, args.maxdata, args.jump, args.fat, args.regular, args.density, args.force_ccr):
     for repeat_idx in range(args.repeat):
-      graph = daggen(args.daggen_path, *config, seed)
+      graph = daggen(args.daggen_path, *config, args.use_pydaggen, seed)
       seed += 1
       output_filename = "daggen_%d_%d_%d_%d_%d_%.3f_%.3f_%.3f_%.3f_%d.dot" % (config + (repeat_idx,))
 

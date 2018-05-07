@@ -191,6 +191,8 @@ def main():
                 help="link bandwidth in MBps as 'bandwidth[:master_bandwidth]' (e.g. '125', '10-100:100')")
   parser_cluster.add_argument("link_latency", type=str,
                 help="link latency in us as 'latency[:master_latency]' (e.g. '10', '10-100:10')")
+  parser_cluster.add_argument("--seed", type=int, default=314,
+                              help="seed to fix random generator")
   parser_cluster.add_argument("--loopback_bandwidth", type=float, default=500,
                 help="loopback link bandwidth in MBps (e.g. '500')")
   parser_cluster.add_argument("--loopback_latency", type=float, default=15,
@@ -201,7 +203,6 @@ def main():
 
   if not os.path.exists(args.output_dir):
     os.makedirs(args.output_dir)
-
   for i in range(0, args.num_systems):
     # cluster
     if args.system_type == "cluster":
@@ -222,6 +223,7 @@ def main():
         master_latency = args.link_latency
 
       # generate cluster
+      random.seed(args.seed + i)
       system = generate_cluster(args.include_master, args.num_hosts, args.host_speed,
                                 host_bandwidth, host_latency, master_bandwidth, master_latency,
                                 args.loopback_bandwidth, args.loopback_latency)
