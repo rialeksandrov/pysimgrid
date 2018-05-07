@@ -129,7 +129,7 @@ def agregate_results(results, cond1, cond2):
   return final_result
 
 def print_result(table, username, token, folder):
-  colors = ['hsl(' + str(h) + ',50%' + ',50%)' for h in numpy.linspace(0, 360, len(ALGO_ORDER))]
+  colors = ['hsl(' + str(h) + ',50%' + ',50%)' for h in numpy.linspace(0, 360, len(ALGO_ORDER) + 1)]
   py.sign_in(username, token)
   for c1 in table:
     for c2 in table[c1]:
