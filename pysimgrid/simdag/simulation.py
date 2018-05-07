@@ -161,7 +161,7 @@ class Simulation(object):
     for host in timetable_per_host:
       last_ended = -1
       for task_time in sorted(timetable_per_host[host], key=operator.itemgetter(0)):
-        if task_time[0] > last_ended:
+        if task_time[0] < last_ended:
           return False
         last_ended = task_time[1]
     return True
@@ -207,9 +207,9 @@ class Simulation(object):
     """
     self._logger.info("Finalizing the simulation (clock: %.2f)", self.clock)
     if self.sanity_check():
-      raise Exception("Sanity check FAILED. Hosts' timetables are invalid")
-    else:
       self._logger.debug("Sanity check SUCCEED. Hosts' timetables are valid")
+    else:
+      raise Exception("Sanity check FAILED. Hosts' timetables are invalid")
     csimdag.exit()
     return False
 
@@ -221,9 +221,10 @@ class ChangeExecutionAmount(object):
   class types(Enum):
     SIMPLE = 0
 
-  def __init__(self, type=types.SIMPLE, percent=0.9):
+  def __init__(self, type=types.SIMPLE, percent=90):
     self.type = type
-    self.percent = percent
+    self.percent = percent / 100.0
+    np.random.seed(314)
 
   def generate_new_amount(self, amount):
     if amount == 0:
