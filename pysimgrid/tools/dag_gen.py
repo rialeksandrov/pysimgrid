@@ -153,6 +153,7 @@ def apply_force_ccr(graph, target_ccr):
 def daggen(daggen_path, n=10, ccr=0, mindata=2048, maxdata=11264, jump=1, fat=0.5, regular=0.9, density=0.5,
            force_ccr=None, use_pydaggen=False, seed=0):
     daggen_path = os.path.normpath(daggen_path)
+    output_file = os.path.join(os.path.dirname(daggen_path), "temp_output.txt")
     params = [
         ("-n", n),
         ("--ccr", ccr),
@@ -167,6 +168,7 @@ def daggen(daggen_path, n=10, ccr=0, mindata=2048, maxdata=11264, jump=1, fat=0.
     ]
     if use_pydaggen:
         params.append(("--seed", seed))
+        params.append(("--output", output_file))
     if not os.path.isfile(daggen_path):
         raise Exception("daggen executable '{}' does not exist".format(daggen_path))
     args = [daggen_path]
@@ -178,7 +180,6 @@ def daggen(daggen_path, n=10, ccr=0, mindata=2048, maxdata=11264, jump=1, fat=0.
       kwargs["stderr"] = subprocess.DEVNULL
     output = subprocess.check_output(args, **kwargs)
     if use_pydaggen:
-      output_file = os.path.join(os.path.dirname(daggen_path), "output.txt")
       with open(output_file, 'r') as file:
         graph = _import_daggen(file)
     else:
