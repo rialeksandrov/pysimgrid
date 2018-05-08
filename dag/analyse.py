@@ -55,6 +55,8 @@ def get_algorithm(item):
   return item["algorithm"]["name"]
 
 
+ALGO_ORDER = []
+
 def main():
   MODES = {
     "tgroup_hcount": lambda results: normtime_all_algo(results, get_taskfile_group, get_host_count),
@@ -65,19 +67,24 @@ def main():
 
   parser = argparse.ArgumentParser(description="Experiment results analysis")
   parser.add_argument("input_file", type=str, help="experiment results")
+  parser.add_argument("config", type=str, help="path to json defining the experiment")
   parser.add_argument("-m", "--mode", type=str, default="tgroup_hcount", choices=list(MODES.keys()), help="processing mode")
   args = parser.parse_args()
 
-  with open(args.input_file) as input_file:
-    results = json.load(input_file)
+  with open(args.config, "r") as file:
+    config = json.load(file)
+    for algo in config["algorithms"]:
+      ALGO_ORDER.append(algo["name"])
+    with open(args.input_file) as input_file:
+      results = json.load(input_file)
 
-  MODES.get(args.mode)(results)
+    MODES.get(args.mode)(results)
 
-ALL_FIELD = "makespan"
-ALL_REFERENCE_ALGO_IDX = 0
 def normtime_all_algo(results, cond1, cond2):
-  ALGO_ORDER = ["OLB", "MCT", "BatchMin", "BatchMax", "BatchSufferage", "HCPT", "HEFT", "Lookahead", "PEFT", "Random", "RoundRobin", "DLS"]
+  #ALGO_ORDER = ["OLB", "MCT", "FixedMCT", "BatchMin", "BatchMax", "Sufferage", "FixedBatchMin", "FixedBatchMax", "FixedSufferage", "HCPT", "HEFT", "Lookahead", "PEFT", "Random", "RoundRobin", "DLS"]
   # evaluate normalized results
+  ALL_FIELD = "makespan"
+  ALL_REFERENCE_ALGO_IDX = 0
   for task, bytask in groupby(results, get_taskfile_name):
     for platform, byplat in groupby(bytask, get_platform_name):
       algorithm_results = groupby(byplat, get_algorithm, False)
@@ -90,8 +97,8 @@ def normtime_all_algo(results, cond1, cond2):
 
 
 def etime_static_algo(results, cond1, cond2):
-  ALGO_ORDER = ["HCPT", "HEFT", "Lookahead", "PEFT"]
-  REFERENCE_ALGO = "HEFT"
+  #ALGO_ORDER = ["HCPT", "HEFT", "Lookahead", "PEFT"]
+  REFERENCE_ALGO = ALGO_ORDER[0]
 
   results = list(filter(lambda r: get_algorithm(r) in ALGO_ORDER, results))
   # evaluate normalized results
