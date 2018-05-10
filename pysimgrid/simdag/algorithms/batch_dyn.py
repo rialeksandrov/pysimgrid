@@ -87,9 +87,9 @@ class DynamicBatchScheduler(scheduler.DynamicScheduler):
 
             if ECT.shape[1] > 1:
                 min2_times = np.partition(ECT, 1)[:, 1]
-                sufferages = min2_times - min_times
+                sufferages = min_times - min2_times
             else:
-                sufferages = -min_times
+                sufferages = min_times
 
             possible_schedules = []
             for i in range(0, len(task_idx)):
@@ -102,7 +102,8 @@ class DynamicBatchScheduler(scheduler.DynamicScheduler):
             task = tasks[int(task_idx[t])]
             host = self._exec_hosts[h]
 
-            task_time = ect - host_est[host]
+            # Should be cached while ECT was built.
+            task_time = self._estimate_cache[(task, host)]
             host_est[host] = ect
 
             if host in free_hosts:
