@@ -17,6 +17,8 @@
 #
 
 from .batch import BatchMin, BatchMax, BatchSufferage
+from .fixed_batch import FixedBatchMin, FixedBatchMax, FixedBatchSufferage
+from .batch_dyn import DynamicBatchMin, DynamicBatchMax, DynamicBatchSufferage
 from .dls import DLS
 from .hcpt import HCPT
 from .heft import HEFT
@@ -31,4 +33,5 @@ from .simga import SimGA
 from .ga import GA
 from .simheft import SimHEFT
 from .fixed_mct import FixedMCT
-from .fixed_batch import FixedBatchMin, FixedBatchMax, FixedBatchSufferage
+from .fixed_mct_2 import FixedMCT2
+from .mct_dyn import DynamicMCT
