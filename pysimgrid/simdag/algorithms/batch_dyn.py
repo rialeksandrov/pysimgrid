@@ -87,7 +87,7 @@ class DynamicBatchScheduler(scheduler.DynamicScheduler):
 
             if ECT.shape[1] > 1:
                 min2_times = np.partition(ECT, 1)[:, 1]
-                sufferages = min_times - min2_times
+                sufferages = min2_times - min_times
             else:
                 sufferages = min_times
 
