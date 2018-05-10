@@ -38,6 +38,9 @@ class MCT(scheduler.DynamicScheduler):
       }
     master_hosts = simulation.hosts.by_prop("name", self.MASTER_HOST_NAME)
     self._master_host = master_hosts[0] if master_hosts else None
+    if self._master_host:
+      for task in simulation.tasks.by_func(lambda t: t.name in self.BOUNDARY_TASKS):
+        task.schedule(self._master_host)
     self._exec_hosts = simulation.hosts.by_prop("name", self.MASTER_HOST_NAME, True)
     self._target_hosts = {}
     self._is_free = {}
@@ -51,11 +54,8 @@ class MCT(scheduler.DynamicScheduler):
     for task in simulation.tasks[csimdag.TaskState.TASK_STATE_SCHEDULABLE]:
       target_host = self._target_hosts.get(task)
       if not target_host:
-        if self.is_boundary_task(task) and self._master_host:
-          target_host = self._master_host
-        else:
-          sorted_hosts = self._exec_hosts.sorted(lambda h: self.get_ect(clock, task, h))
-          target_host = sorted_hosts[0]
+        sorted_hosts = self._exec_hosts.sorted(lambda h: self.get_ect(clock, task, h))
+        target_host = sorted_hosts[0]
         self._target_hosts[task] = target_host
         target_host.data["est"] = self.get_ect(clock, task, target_host)
       if self._is_free[target_host]:

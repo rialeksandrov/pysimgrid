@@ -34,7 +34,11 @@ class OLB(scheduler.DynamicScheduler):
   def prepare(self, simulation):
     for h in simulation.hosts:
       h.data = {}
-    self._master_hosts = simulation.hosts.by_prop("name", self.MASTER_HOST_NAME, False)
+    master_hosts = simulation.hosts.by_prop("name", self.MASTER_HOST_NAME)
+    self._master_host = master_hosts[0] if master_hosts else None
+    if self._master_host:
+      for task in simulation.tasks.by_func(lambda t: t.name in self.BOUNDARY_TASKS):
+        task.schedule(self._master_host)
     self._exec_hosts = simulation.hosts.by_prop("name", self.MASTER_HOST_NAME, True)
     self._queue = []
 
@@ -49,11 +53,7 @@ class OLB(scheduler.DynamicScheduler):
         self._queue.append(t)
     while self._queue:
       task = self._queue[0]
-      if self.is_boundary_task(task) and self._master_hosts:
-        possible_hosts = self._master_hosts
-      else:
-        possible_hosts = self._exec_hosts
-      free_hosts = possible_hosts.by_data("free", True)
+      free_hosts = self._exec_hosts.by_data("free", True)
       if free_hosts:
         self._queue.pop(0)
         free_hosts = free_hosts.sorted(lambda h: h.speed, reverse=True)
