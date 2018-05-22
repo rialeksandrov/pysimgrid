@@ -35,3 +35,4 @@ from .simheft import SimHEFT
 from .fixed_mct import FixedMCT
 from .fixed_mct_2 import FixedMCT2
 from .mct_dyn import DynamicMCT
+from .dls_dyn import DynamicDLS
