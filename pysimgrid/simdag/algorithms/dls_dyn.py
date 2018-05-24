@@ -40,6 +40,7 @@ class DynamicDLS(scheduler.DynamicScheduler):
     self._exec_hosts = simulation.hosts.by_prop("name", self.MASTER_HOST_NAME, True)
     self._started_tasks = set()
     self._estimate_cache = {}
+    self._comm_cache = {}
 
     nxgraph = simulation.get_task_graph()
     platform_model = cscheduling.PlatformModel(simulation)
@@ -125,15 +126,26 @@ class DynamicDLS(scheduler.DynamicScheduler):
     if (task, host) in self._estimate_cache:
       task_time = self._estimate_cache[(task, host)]
     else:
-      parent_connections = [p for p in task.parents if p.kind == csimdag.TaskKind.TASK_KIND_COMM_E2E]
-      comm_times = [conn.get_ecomt(conn.parents[0].hosts[0], host) for conn in parent_connections]
-      task_time = (max(comm_times) if comm_times else 0.) + task.get_eet(host)
+      if (task, host) in self._comm_cache:
+        final_comm_time = self._comm_cache[(task, host)]
+      else:
+        parent_connections = [p for p in task.parents if p.kind == csimdag.TaskKind.TASK_KIND_COMM_E2E]
+        comm_times = [conn.get_ecomt(conn.parents[0].hosts[0], host) for conn in parent_connections]
+        final_comm_time = (max(comm_times) if comm_times else 0.)
+        self._comm_cache[(task, host)] = final_comm_time
+      task_time = final_comm_time + task.get_eet(host)
       self._estimate_cache[(task, host)] = task_time
     return max(est, clock) + task_time
 
-  @classmethod
   def calculate_dl(cls, sl, aec, task, host, start):
-    return sl[task] + (aec[task] - task.amount / host.speed) - start
+    if (task, host) in cls._comm_cache:
+      final_comm_time = cls._comm_cache[(task, host)]
+    else:
+      parent_connections = [p for p in task.parents if p.kind == csimdag.TaskKind.TASK_KIND_COMM_E2E]
+      comm_times = [conn.get_ecomt(conn.parents[0].hosts[0], host) for conn in parent_connections]
+      final_comm_time = (max(comm_times) if comm_times else 0.)
+      cls._comm_cache[(task, host)] = final_comm_time
+    return sl[task] + (aec[task] - task.amount / host.speed) - (start + final_comm_time)
 
   @classmethod
   def get_tasks_sl_aec(cls, nxgraph, platform_model):
